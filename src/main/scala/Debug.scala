@@ -2,6 +2,8 @@ package com.twitter.algebird
 import com.twitter.algebird.macros.*
 import java.nio.file.Files
 import java.nio.file.Path
+import org.scalacheck.Gen
+import org.scalacheck.*
 object Debug:
   case class It(i: Int, j: Int, that: That) derives Roller, Cuber
   case class That(k: String, l: Int, c: Double)
@@ -15,6 +17,11 @@ object Debug:
     given ev: Monoid[It] = caseclass.monoid[It]
     given evg: Group[Foo] = caseclass.group[Foo]
     given evr: Ring[Foo] = caseclass.ring[Foo]
+    given Gen[String] = Gen.const("String")
+    given Gen[Int] = Gen.const(1)
+    given Gen[Double] = Gen.const(1d)
+    //given a : Gen[That] = ArbitraryCaseClassMacro.gen[That]
+    given b : Gen[It] = ArbitraryCaseClassMacro.gen[It]
 
     val f0 = Foo(1, 2, 3)
     val f1 = Foo(4, 5, 6)
@@ -26,6 +33,8 @@ object Debug:
     println(evg.minus(f0, f1))
     println(evr.one)
     println(evr.times(f0, f1))
+    //println(a.suchThat(_ => true).sample)
+    println(b.suchThat(_ => true).sample)
 
   }
   @main

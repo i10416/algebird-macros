@@ -5,7 +5,8 @@ lazy val src = project
   .settings(
     libraryDependencies ++= Seq(
       ("org.typelevel" %% "algebra" % algebraVersion)
-        .cross(CrossVersion.for3Use2_13)
+        .cross(CrossVersion.for3Use2_13),
+      "org.scalacheck" %% "scalacheck" % "1.15.3"
     ),
     scalaVersion := "3.2.2",
     scalacOptions ++= Seq(
