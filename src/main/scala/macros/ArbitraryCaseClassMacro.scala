@@ -17,9 +17,9 @@ object ArbitraryCaseClassMacro:
   def summonAll[T: Type](using q: Quotes): List[Expr[Gen[?]]] =
     Type.of[T] match
       case '[tpe *: tpes] =>
-        Expr.summon[Gen[tpe]] match
+        Expr.summon[Arbitrary[tpe]] match
           case None       => caseClassGen[tpe] :: summonAll[tpes]
-          case Some(inst) => inst :: summonAll[tpes]
+          case Some(inst) => '{ ${ inst }.arbitrary } :: summonAll[tpes]
       case '[EmptyTuple] => Nil
   def caseClassArbitrary[T: Type](using q: Quotes): Expr[Arbitrary[T]] =
     import q.reflect.*
@@ -44,12 +44,17 @@ object ArbitraryCaseClassMacro:
           } =>
         val insts: List[Expr[Gen[?]]] = summonAll[elementTypes].reverse
         val last :: leading = insts: @unchecked
-
         val expr =
-          leading.foldLeft[Seq[Expr[?]] => Expr[Gen[?]]](args => {
+          leading.foldLeft[Seq[Expr[?]] => Expr[Gen[T]]](args => {
             val argsExpr = Expr.ofSeq(args)
             '{
-              ${ last }.map(v => Tuple.fromArray((${ argsExpr } :+ v).toArray))
+              ${ last }.map { v =>
+                ${ m }.fromTuple(
+                  Tuple
+                    .fromArray((${ argsExpr } :+ v).toArray)
+                    .asInstanceOf[elementTypes]
+                )
+              }
             }
           }) { case (acc, gen) =>
             (
@@ -61,13 +66,9 @@ object ArbitraryCaseClassMacro:
                   }
             )
           }
-        val genExpr = expr(Nil)
-        '{
-          ${ genExpr }
-            .asInstanceOf[Gen[Tuple]]
-            .map(t => ${ m }.fromTuple(t.asInstanceOf[elementTypes]))
-        }
-
+        val e = expr(Nil)
+        report.info(e.asTerm.show(using Printer.TreeShortCode))
+        e
       case '{ $m: Mirror.SumOf[T] { type MirroredElemTypes = elementTypes } } =>
         val tname = TypeRepr.of[T].typeSymbol.name
         report.errorAndAbort(s"unable to derive Arbitrary for ${tname}")
